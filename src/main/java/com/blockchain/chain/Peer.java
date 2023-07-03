@@ -1,7 +1,6 @@
 package com.blockchain.chain;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -20,7 +19,7 @@ public class Peer {
     private ExecutorService executorService;
     private List<PeerInfo> peerList;
     private PeerInfo peerInfo;
-    private List<Transaction> pendingTransactions;
+
 
     public Peer(String ipAddress, int port, Blockchain blockchain) {
         this.ipAddress = ipAddress;
@@ -29,7 +28,8 @@ public class Peer {
         this.executorService = Executors.newFixedThreadPool(20);
         this.peerList = new ArrayList<>();
         this.peerInfo = new PeerInfo(ipAddress, port);
-        this.pendingTransactions = new ArrayList<>();
+        // Peer adds itself to the blockchain
+        this.blockchain.addPeer(this);
     }
 
     public void start() {
@@ -40,7 +40,8 @@ public class Peer {
             serverSocket.setSoTimeout(2500);
             ExecutorService handlerExecutorService = Executors.newFixedThreadPool(10);
 
-            generateRandomTransaction();
+            // Called while testing without an api endpoint
+            //generateRandomTransaction();
 
             Thread incomingThread = new Thread(() -> {
                 while (true) {
@@ -81,6 +82,7 @@ public class Peer {
         }
     }
 
+    // Used to connect to other peers found in the network.
     private void connectToPeers() {
         ExecutorService executorService = Executors.newFixedThreadPool(peerList.size());
 
@@ -116,27 +118,35 @@ public class Peer {
         }
     }
 
-    private void generateRandomTransaction() {
+    // Used while testing without an api endpoint.
+    /*private void generateRandomTransaction() {
         TransactionGenerator transactionGenerator = new TransactionGenerator();
         if (!peerList.isEmpty()) {
             broadcastTransaction(transactionGenerator.generateTransaction());
         } else {
             System.out.println("No peers available to broadcast the transaction.");
         }
-    }
+    }*/
 
+    // Boradcasting
     public void broadcastTransaction(Transaction transaction) {
         for (PeerInfo peerInfo : peerList) {
             sendTransactionToPeer(transaction, peerInfo);
         }
     }
-
     public void broadcastBlock(Block block) {
         for (PeerInfo peerInfo : peerList) {
             sendBlockToPeer(block, peerInfo);
         }
     }
 
+    public void broadCastVote(Vote vote) {
+        for (PeerInfo peerInfo : peerList) {
+            sendVoteToPeer(vote);
+        }
+    }
+
+    // Sending blocks, transactions and votes to another peer
     public void sendBlockToPeer(Block block, PeerInfo peerInfo) {
         try (Socket peerSocket = new Socket(peerInfo.getIpAddress(), peerInfo.getPort())) {
             System.out.println("Creating output stream for block. From Peer: " + this.peerInfo + " , to Peer: " + peerInfo);
@@ -147,28 +157,32 @@ public class Peer {
             e.printStackTrace();
         }
     }
-
     public void sendTransactionToPeer(Transaction transaction, PeerInfo peerInfo) {
         try (Socket peerSocket = new Socket(peerInfo.getIpAddress(), peerInfo.getPort())) {
             System.out.println("Creating output stream for transaction. From Peer: " + this.peerInfo + " , to Peer: " + peerInfo);
+            PendingTransaction pendingTransaction = new PendingTransaction(transaction, peerInfo.getPeerId());
             ObjectOutputStream outputStream = new ObjectOutputStream(peerSocket.getOutputStream());
-            outputStream.writeObject(transaction);
+            outputStream.writeObject(pendingTransaction);
+            outputStream.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    public void sendVoteToPeer(Vote vote) {
+        try (Socket peerSocket = new Socket(peerInfo.getIpAddress(), peerInfo.getPort())) {
+            System.out.println("Sending vote from Peer: " + this.peerInfo + " to Peer: " + peerInfo);
+            // Create an ObjectOutputStream to write the Vote object to the socket
+            ObjectOutputStream outputStream = new ObjectOutputStream(peerSocket.getOutputStream());
+            outputStream.writeObject(vote);
             outputStream.flush();
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public int castVotesForTransaction(Transaction transaction) {
-        int numVotes = 0;
-        for (PeerInfo peerInfo : this.getPeerList()) {
-            if (sendVoteToPeer(transaction, peerInfo)) {
-                numVotes++;
-            }
-        }
-        return numVotes;
-    }
 
+
+    // Maintaining peers
     public synchronized void addToPeerList(String ipAddress, int port) {
         PeerInfo peerInfo = new PeerInfo(ipAddress, port);
         if (!peerList.contains(peerInfo)) {
@@ -176,27 +190,12 @@ public class Peer {
             System.out.println("Added peer: " + ipAddress + ":" + port);
         }
     }
-
     public synchronized void removeFromPeerList(String ipAddress, int port) {
         PeerInfo peerInfo = new PeerInfo(ipAddress, port);
         if (peerList.contains(peerInfo)) {
             peerList.remove(peerInfo);
             System.out.println("Removed peer: " + ipAddress + ":" + port);
         }
-    }
-
-    private boolean sendVoteToPeer(Transaction transaction, PeerInfo peerInfo) {
-        try (Socket peerSocket = new Socket(peerInfo.getIpAddress(), peerInfo.getPort())) {
-            ObjectOutputStream outputStream = new ObjectOutputStream(peerSocket.getOutputStream());
-            outputStream.writeObject(transaction);
-            outputStream.flush();
-            ObjectInputStream inputStream = new ObjectInputStream(peerSocket.getInputStream());
-            return inputStream.readBoolean();
-        } catch (IOException e) {
-            this.removeFromPeerList(peerInfo.getIpAddress(), peerInfo.getPort());
-            e.printStackTrace();
-        }
-        return false;
     }
 
     public Blockchain getBlockchain() {
@@ -223,17 +222,4 @@ public class Peer {
         return peerList.size();
     }
 
-    public List<Transaction> getPendingTransactions() {
-        return pendingTransactions;
-    }
-
-    public void addTransaction(Transaction transaction) {
-        pendingTransactions.add(transaction);
-    }
-
-    public void createBlock() {
-        Block newBlock = blockchain.createBlock(pendingTransactions);
-        broadcastBlock(newBlock);
-        pendingTransactions.clear();
-    }
 }

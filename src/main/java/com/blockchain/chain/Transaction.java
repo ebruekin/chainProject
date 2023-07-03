@@ -101,5 +101,19 @@ public Transaction(Donater sender, Student recipient, double requestedAmount, Da
         }
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+        Transaction transaction = (Transaction) obj;
+        return transactionId.equals(transaction.transactionId);
+    }
+
+
+
 }
 
