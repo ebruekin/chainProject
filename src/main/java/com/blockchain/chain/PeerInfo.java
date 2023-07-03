@@ -6,9 +6,20 @@ public class PeerInfo {
     private String ipAddress;
     private int port;
 
+    private String peerId;
+
     public PeerInfo(String ipAddress, int port) {
         this.ipAddress = ipAddress;
         this.port = port;
+        this.peerId = generatePeerId(ipAddress, port);
+    }
+
+    // Creates unique hash according to the ip/port combination
+    private String generatePeerId(String ipAddress, int port) {
+
+        String combinedString = ipAddress + ":" + port;
+        int hashCode = combinedString.hashCode();
+        return String.valueOf(hashCode);
     }
 
     public String getIpAddress() {
@@ -17,6 +28,10 @@ public class PeerInfo {
 
     public int getPort() {
         return port;
+    }
+
+    public String getPeerId() {
+        return peerId;
     }
 
     @Override

@@ -82,11 +82,9 @@ public class Donater implements Serializable {
         }
     }
 
-    public void updateDonationHistory(Student student, double amount) {
-        // İsteğe bağlı olarak, bağış geçmişini güncellemek için buraya kod ekleyebilirsiniz.
-    }
+    /*public void updateDonationHistory(Student student, double amount) {
+    }*/
 
-    // Diğer yöntemler ve getter/setter'lar...
 
     public String getId() {
         return id;

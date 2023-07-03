@@ -35,10 +35,9 @@ public class Student implements Serializable {
         double previousBalance = balance;
         setBalance(previousBalance + amount);
         transactionHistory.add(transaction);
-        transaction.getDonater().updateDonationHistory(this, amount);
+        //transaction.getDonater().updateDonationHistory(this, amount);
     }
 
-    // Diğer yöntemler ve getter/setter'lar...
 
     public String getId() {
         return id;

@@ -44,7 +44,7 @@ public class Block{
 
     String calculateMerkleRoot() {
         if (transactions.isEmpty()) {
-            return ""; // Return an empty string if there are no transactions
+            return "00000000000000000000000000000000"; // Return a set value for genesis block.
         }
 
         List<String> transactionIds = new ArrayList<>();
@@ -92,12 +92,11 @@ public class Block{
             return hexString.toString();
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
-            return ""; // Return an empty string in case of hash calculation error
+            return ""; // Return an empty string in case of error
         }
     }
 
 
-    // Getters and Setters
 
     public int getIndex() {
         return index;

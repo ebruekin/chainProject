@@ -7,6 +7,7 @@ import java.util.Random;
 
 public class TransactionGenerator {
 
+    // Helper class written for testing purposes
     private List<Donater> donaterList;
     private List<Student> studentList;
 
@@ -14,7 +15,7 @@ public class TransactionGenerator {
         donaterList = new ArrayList<>();
         studentList = new ArrayList<>();
 
-        // Donater array listesi
+
         Donater donater1 = new Donater("D123", "John", 1000);
         Donater donater2 = new Donater("D456", "Emily", 500);
         Donater donater3 = new Donater("D789", "David", 2000);
@@ -37,7 +38,6 @@ public class TransactionGenerator {
         donaterList.add(donater9);
         donaterList.add(donater10);
 
-        // Student array listesi
         Student student1 = new Student("S123", 2000);
         Student student2 = new Student("S456", 1500);
         Student student3 = new Student("S789", 1000);
@@ -64,22 +64,18 @@ public class TransactionGenerator {
     public synchronized Transaction generateTransaction() {
         Random random = new Random();
 
-        // Rastgele bir donater seçme
+        // Choose random donator
         Donater sender = donaterList.get(random.nextInt(donaterList.size()));
 
-        // Rastgele bir student seçme
+        // Choose random student
         Student recipient = studentList.get(random.nextInt(studentList.size()));
 
-        // Rastgele bir miktar belirleme (0 ile donater'ın bakiyesi arasında)
         double requestedAmount = 50;
 
-        // Rastgele bir zaman damgası oluşturma
         Date timeStamp = new Date();
 
-        // Yeni bir Transaction nesnesi oluşturma
         Transaction transaction = new Transaction(sender, recipient, requestedAmount, timeStamp);
 
-        // İlgili donaterin bakiyesini güncelleme
         sender.setBalance(sender.getBalance() - requestedAmount);
 
         return transaction;

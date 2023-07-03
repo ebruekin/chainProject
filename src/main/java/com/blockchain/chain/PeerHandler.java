@@ -5,6 +5,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.HashSet;
+import java.util.Set;
 
 public class PeerHandler implements Runnable {
     private Socket socket;
@@ -47,11 +49,21 @@ public class PeerHandler implements Runnable {
                 System.out.println("Received a block");
                 handleReceivedBlock((Block) receivedMessage);
                 System.out.println("Processed new block");
-            } else if (receivedMessage instanceof Transaction) {
-                System.out.println("Received a transaction");
+            }else if (receivedMessage instanceof Transaction) {
+                System.out.println("Received a new transaction");
                 handleReceivedTransaction((Transaction) receivedMessage);
+                System.out.println("Handling new transaction new transaction");
+            }else if (receivedMessage instanceof Vote) {
+                System.out.println("Received a vote");
+                handleReceivedVote((Vote) receivedMessage);
+                System.out.println("Handling received vote");
+            }
+            else if (receivedMessage instanceof PendingTransaction) {
+                System.out.println("Received a transaction");
+                handleReceivedTransaction((PendingTransaction) receivedMessage);
                 System.out.println("Processed new transaction");
-            } else if (receivedMessage instanceof PeerInfo) {
+            }
+            else if (receivedMessage instanceof PeerInfo) {
                 System.out.println("Received a peer info");
                 handleReceivedPeerInfo((PeerInfo) receivedMessage);
                 System.out.println("Processed new peer info");
@@ -64,7 +76,6 @@ public class PeerHandler implements Runnable {
             outputStream.flush();
         } catch (SocketException e) {
             System.out.println("SocketException occurred: " + e.getMessage());
-            // Handle the exception appropriately based on your specific use case
         } finally {
             if (outputStream != null) {
                 try {
@@ -84,6 +95,19 @@ public class PeerHandler implements Runnable {
     }}
 
 
+    // Adds the vote to the blockchain
+    private void handleReceivedVote(Vote receivedMessage) {
+        Set<PendingTransaction> transactionList =
+                peer.getBlockchain().getPendingTransactions()
+                        .getOrDefault(receivedMessage.getTransaction().getTransactionId(), new HashSet<>());
+
+        PendingTransaction votedTransaction = new PendingTransaction(receivedMessage.getTransaction(),peer.getPeerInfo().getPeerId());
+        transactionList.add(votedTransaction);
+        peer.getBlockchain().getPendingTransactions()
+                .put(receivedMessage.getTransaction().getTransactionId(),transactionList);
+    }
+
+
     private void handleReceivedBlock(Block receivedBlock) {
         // Verify the received block
         if (peer.getBlockchain().verifyBlock(receivedBlock)) {
@@ -97,21 +121,29 @@ public class PeerHandler implements Runnable {
         }
     }
 
-    private void handleReceivedTransaction(Transaction receivedTransaction) {
-        peer.getBlockchain().addTransaction(receivedTransaction);
-        System.out.println("Received a valid transaction. Added to the pending transactions.");
-        peer.broadcastTransaction(receivedTransaction);
+    // For transactions that were broadcast
+    private void handleReceivedTransaction(PendingTransaction receivedTransaction) {
 
         // Verify and process the received transaction
-        if (peer.getBlockchain().verifyTransaction(receivedTransaction)) {
-            int numVotes = peer.castVotesForTransaction(receivedTransaction);
-            // Basic consensus logic. Needs %50 + 1 of the votes only.
-            if (numVotes >= (peer.getPeerCount() / 2) + 1) {
+        if (peer.getBlockchain().verifyPendingTransaction(receivedTransaction)) {
                 System.out.println("Received a valid transaction. Added to the pending transactions.");
-                peer.broadcastTransaction(receivedTransaction);
-            } else {
-                System.out.println("Transaction did not receive enough votes for consensus.");
-            }
+                peer.getBlockchain().addTransaction(receivedTransaction);
+                peer.broadcastTransaction(receivedTransaction.getTransaction());
+            peer.broadCastVote(new Vote(true,receivedTransaction.getTransaction(),peer.getPeerInfo()));
+
+        } else {
+            System.out.println("Received an invalid transaction. Discarded.");
+        }
+    }
+
+    // For fresh transactons
+    private void handleReceivedTransaction(Transaction receivedTransaction) {
+        PendingTransaction pendingTransaction = new PendingTransaction(receivedTransaction, peer.getPeerInfo().getPeerId());
+        // Verify and process the received transaction
+        if (peer.getBlockchain().verifyPendingTransaction(pendingTransaction)) {
+            System.out.println("Received a valid transaction. Added to the pending transactions.");
+            peer.getBlockchain().addTransaction(pendingTransaction);
+            peer.broadcastTransaction(pendingTransaction.getTransaction());
         } else {
             System.out.println("Received an invalid transaction. Discarded.");
         }
